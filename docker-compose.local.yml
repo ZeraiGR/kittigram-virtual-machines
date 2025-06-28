@@ -1,0 +1,42 @@
+services:
+  gateway:
+    image: zeraigr/kittygram_gateway
+    volumes:
+      - static:/var/www/html/static
+      - media:/var/www/html/media
+    ports:
+      - '80:80'
+    depends_on:
+      - frontend
+      - backend
+
+  backend:
+    build: ./backend
+    env_file: .env
+    volumes: 
+      - static:/code/collected_static
+      - media:/code/media
+    depends_on:
+      - postgres
+
+  frontend:
+    build: ./frontend
+    volumes:
+      - static:/app/build
+    depends_on:
+      - backend
+    env_file: .env
+
+  postgres:
+    image: postgres:13.10
+    restart: always
+    # set shared memory limit when using docker-compose
+    shm_size: 128mb
+    volumes:
+      - pg_data:/var/lib/postgresql/data/
+    env_file: .env
+
+volumes:
+  pg_data:
+  static:
+  media:
