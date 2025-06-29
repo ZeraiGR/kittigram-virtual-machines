@@ -49,11 +49,6 @@ variable "zone" {
   default     = "ru-central1-a"
 }
 
-variable "aws_region" {
-  description = "AWS Region name"
-  type = string
-}
-
 variable "platform_id" {
   default = "standard-v2"
 }
