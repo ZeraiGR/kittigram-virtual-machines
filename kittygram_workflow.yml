@@ -174,30 +174,56 @@ jobs:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
-        passphrase: ${{ secrets.SSH_PASSPHRASE }}
         source: "docker-compose.production.yml"
         target: "~/kittygram"
+    - name: Create .env file on server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.HOST }}
+        username: ${{ secrets.USER }}
+        key: ${{ secrets.SSH_KEY }}
+        script: |
+          echo "
+          # Django settings
+          SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+          DEBUG=False
+          ALLOWED_HOSTS=${{ secrets.HOST }},127.0.0.1,localhost
+
+          # Postgres settings
+          POSTGRES_DB=kittygram
+          POSTGRES_USER=kittygram_user
+          POSTGRES_PASSWORD=kittygram_password
+          POSTGRES_HOST=postgres
+          DB_PORT=5432
+
+          # Media settings
+          MEDIA_HOST=${{ secrets.HOST }}
+
+          DOCKER_USERNAME=${{ secrets.DOCKER_USERNAME }}
+          " > ~/kittygram/.env
     - name: Executing remote ssh commands to deploy
       uses: appleboy/ssh-action@master
       with:
         host: ${{ secrets.HOST }}
         username: ${{ secrets.USER }}
         key: ${{ secrets.SSH_KEY }}
-        passphrase: ${{ secrets.SSH_PASSPHRASE }}
         # Параметр script передаёт в action appleboy/ssh-action команды,
         # которые нужно выполнить на сервере, 
         # с которым установлено соединение:
         script: |
           cd ~/kittygram
           # Выполняет pull образов с Docker Hub
-          sudo docker compose -f docker-compose.production.yml pull
+          docker compose --env-file .env -f docker-compose.production.yml pull
           # Перезапускает все контейнеры в Docker Compose
-          sudo docker compose -f docker-compose.production.yml down
-          sudo docker compose -f docker-compose.production.yml up -d
+          docker compose --env-file .env -f docker-compose.production.yml down
+          docker compose --env-file .env -f docker-compose.production.yml up -d
+
+          # Оставляем время для старта контейнера с базой данных
+          sleep 15
+
           # Выполняет миграции и сбор статики
-          sudo docker compose -f docker-compose.production.yml exec backend python manage.py migrate
-          sudo docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic --noinput
-          # sudo docker compose -f docker-compose.production.yml exec backend cp -r /app/collected_static/. /backend_static/static/
+          docker compose -f docker-compose.production.yml exec backend python manage.py migrate
+          docker compose -f docker-compose.production.yml exec backend python manage.py collectstatic --noinput
 
   auto_tests:
     runs-on: ubuntu-latest
